@@ -1,0 +1,5 @@
+# ignore plots/ directory
+plots/
+
+# ignore model_checkpoints/ directory
+model_checkpoints/
