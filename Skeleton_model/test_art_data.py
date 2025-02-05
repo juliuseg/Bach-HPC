@@ -1,15 +1,15 @@
 import numpy as np
 from noise import pnoise1 
 from skimage.draw import line_nd
+from scipy.ndimage import binary_dilation
+
 
 class ArtificialSkeletonGenerator:
     """Class to generate 3D artificial skeleton datasets with wobbly line patterns."""
 
-    def __init__(self, shape=(128, 128, 128), num_lines=15):
+    def __init__(self, shape=(128, 128, 128)):
         self.shape = shape  # Define the shape of the 3D volume
-        self.num_lines = num_lines  # Number of wobbly lines to generate
-        self.art_data = np.zeros(shape, dtype=np.float32)  # Initialize empty dataset
-        self.skeletons = []  # Store the generated skeletons
+        
 
         # Wobble strength & frequency (adjust these for different noise effects)
         self.wobble_strengths = [7, 4, 1]
@@ -23,10 +23,10 @@ class ArtificialSkeletonGenerator:
         else:
             return np.random.randint(0, self.shape[0]), np.random.randint(0, self.shape[1]), 0
 
-    def connect_voxels(self, start, end):
+    def connect_voxels(self, start, end,  art_data):
         """Ensures connectivity between discrete points by interpolating."""
         rr, cc, zz = line_nd(start, end)
-        self.art_data[rr, cc, zz] = 1.0
+        art_data[rr, cc, zz] = 1.0
         return rr, cc, zz
 
     def calculate_radius(self, center, start):
@@ -53,9 +53,11 @@ class ArtificialSkeletonGenerator:
         size_distribution = rv_discrete(name="component_size_dist", values=(unique_sizes, probabilities))
         return size_distribution
 
-    def generate_skeleton_data(self):
+    def generate_skeleton_data(self, num_lines):
         """Generates a 3D artificial dataset with wobbly skeleton structures."""
-        for i in range(self.num_lines):
+        art_data = np.zeros(self.shape, dtype=np.float32)  # Initialize empty dataset
+        skeletons = []  # Store the generated skeletons
+        for i in range(num_lines):
             x, y, z = self.get_random_border_start()
             seed_x, seed_yz = np.random.randint(0, 100000, size=2)
             noise_step, prev_x, prev_y, prev_z = 0, x, y, z
@@ -93,11 +95,11 @@ class ArtificialSkeletonGenerator:
 
                 if 0 <= y_set < self.shape[1]:
                     if (x_set, y_set, z_set) != (prev_x, prev_y, prev_z):
-                        rr, cc, zz = self.connect_voxels((prev_x, prev_y, prev_z), (x_set, y_set, z_set))
+                        rr, cc, zz = self.connect_voxels((prev_x, prev_y, prev_z), (x_set, y_set, z_set),art_data)
                         for r, c, z in zip(rr, cc, zz):
                             line_indices.append((r, c, z))
 
-                    self.art_data[x_set, y_set, z_set] = 1.0
+                    art_data[x_set, y_set, z_set] = 1.0
                     line_indices.append((x_set, y_set, z_set))
                     prev_x, prev_y, prev_z = x_set, y_set, z_set
 
@@ -108,9 +110,9 @@ class ArtificialSkeletonGenerator:
 
                 noise_step += 1
 
-            self.skeletons.append(line_indices)
+            skeletons.append(line_indices)
 
-        return self.art_data, self.skeletons
+        return art_data, skeletons
 
 
 import numpy as np
@@ -219,7 +221,7 @@ class ArtificialSkeletonGeneratorExtended(ArtificialSkeletonGenerator):
 
         return new_array
 
-    def generate_broken_skeleton_data(self, total_sum=1000):
+    def generate_broken_skeleton_data(self, total_sum=1000, num_lines=15):
         """
         Generates both the full skeleton data and a broken version.
 
@@ -230,7 +232,7 @@ class ArtificialSkeletonGeneratorExtended(ArtificialSkeletonGenerator):
             tuple: (full skeleton, broken skeleton)
         """
         # Generate full skeleton first
-        full_skeleton, skeletons = self.generate_skeleton_data()
+        full_skeleton, skeletons = self.generate_skeleton_data(num_lines=num_lines)
 
         # Generate the broken skeleton
         broken_skeleton = self.break_skeletons(skeletons, total_sum)
@@ -241,7 +243,7 @@ class ArtificialSkeletonGeneratorExtended(ArtificialSkeletonGenerator):
 class ArtificialSkeletonGeneratorMiddleBreak(ArtificialSkeletonGenerator):
     """Extended class that generates a single skeleton and breaks the middle part."""
 
-    def generate_single_skeleton_broken_middle(self, hole_length=4):
+    def generate_single_skeleton_broken_middle(self, hole_length=4, num_lines=1):
         """
         Generates a single skeleton and breaks a segment in the middle.
 
@@ -251,23 +253,39 @@ class ArtificialSkeletonGeneratorMiddleBreak(ArtificialSkeletonGenerator):
         Returns:
             tuple: (full skeleton, broken skeleton)
         """
-        # Generate a single skeleton
-        full_skeleton, skeletons = self.generate_skeleton_data()
         
-        # Only one skeleton should be present
-        if not skeletons or len(skeletons[0]) == 0:
-            raise ValueError("Failed to generate a valid skeleton.")
+        # Generate a single skeleton
+        # set full_skeleton_all to zeros in the shape of num_lines, self.shape
+        full_skeleton_all = np.zeros((num_lines, *self.shape), dtype=np.float32)
+        skeletons_all = []
+        broken_skeleton_all = np.zeros((num_lines, *self.shape), dtype=np.float32)
 
-        # Break the middle part
-        broken_skeleton = self.break_middle_section(full_skeleton, skeletons[0], hole_length)
+        for i in range(num_lines):
+            max_iter = 100
+            full_skeleton, skeletons = self.generate_skeleton_data(num_lines=1)  # Generate one skeleton at a time
+            while np.sum(full_skeleton) < (hole_length + 4) and max_iter > 0:
+                full_skeleton, skeletons = self.generate_skeleton_data(num_lines=1)
+                max_iter -= 1
+            
+            skeletons = skeletons[0]
+
+            
+            full_skeleton_all[i] = full_skeleton
+            skeletons_all.append(skeletons)
+            broken_skeleton_all[i] = self.break_middle_section(full_skeleton_all[i], skeletons_all[i], hole_length)
 
         # Make hole_skeleton: full_skeleton-broken_skeleton, so we only get the hole in the middle
-        hole_skeleton = full_skeleton.copy()
-        hole_skeleton[broken_skeleton == 1] = 0
+        hole_skeleton_all = full_skeleton_all.copy()
 
+        for i in range(num_lines):
+            hole_skeleton_all[i][broken_skeleton_all[i] == 1] = 0
+            hole_skeleton_all[i] = binary_dilation(hole_skeleton_all[i], iterations=1)
 
-        return hole_skeleton, broken_skeleton
+        final_hole_skeleton = np.sum(hole_skeleton_all, axis=0)
+        final_broken_skeleton = np.sum(broken_skeleton_all, axis=0)
 
+        return final_hole_skeleton, final_broken_skeleton
+    
     def break_middle_section(self, skeleton_array, skeleton, hole_length):
         """
         Removes a segment around the middle of the skeleton.
@@ -280,6 +298,7 @@ class ArtificialSkeletonGeneratorMiddleBreak(ArtificialSkeletonGenerator):
         Returns:
             np.ndarray: Skeleton array with a missing middle segment.
         """
+        
         # Find the middle index
         mid_index = len(skeleton) // 2
 
@@ -294,43 +313,57 @@ class ArtificialSkeletonGeneratorMiddleBreak(ArtificialSkeletonGenerator):
             broken_skeleton[x, y, z] = 0  # Set removed voxels to zero
 
         return broken_skeleton
-
-
-# Example: Generate Artificial Data (like `generate_noise_to_gradient`)
-
-# def generate_skeleton_based_data(shape=(32, 32, 32)):
-#     """Wrapper function that creates a 3D artificial dataset with skeleton-like structures."""
-#     generator = ArtificialSkeletonGeneratorExtended(shape=shape, num_lines=1) # 0.000005 times shape^3
-#     skeleton_data, broken_skeleton = generator.generate_broken_skeleton_data(total_sum=700)
     
-#     skeleton_data = skeleton_data[np.newaxis, ...]  # Adds a new channel dimension at axis 0
-#     broken_skeleton = broken_skeleton[np.newaxis, ...]  # Same for broken skeleton
-    
-#     return skeleton_data, broken_skeleton
 
-def generate_skeleton_based_data(shape=(32, 32, 32)):
+    def scale_line_size(self,arr):
+        """
+        Modify a 3D array where a line of `1`s exists, increasing its thickness up to the middle
+        and then decreasing back down symmetrically.
+
+        Parameters:
+        arr (numpy.ndarray): A 3D numpy array containing a line represented by `1`s.
+
+        Returns:
+        numpy.ndarray: A new 3D numpy array with the modified line thickness.
+        """
+        # Find coordinates of the line
+        line_coords = np.argwhere(arr == 1)
+        
+        if len(line_coords) == 0:
+            return arr  # No line found, return unchanged array
+
+        # Compute the middle index
+        mid_idx = len(line_coords) // 2
+        
+        # Compute maximum radius at middle (can be tuned)
+        max_radius = max(arr.shape) // 10  # Adjust the divisor to control thickness
+
+        new_arr = np.zeros_like(arr)
+
+        for i, (x, y, z) in enumerate(line_coords):
+            # Compute thickness based on position in the line
+            if i <= mid_idx:
+                radius = 1 + int((max_radius - 1) * (i / mid_idx))  # Scale up
+            else:
+                radius = 1 + int((max_radius - 1) * ((len(line_coords) - i - 1) / mid_idx))  # Scale down
+            
+            # Draw a small sphere around the point to increase thickness
+            for dx in range(-radius, radius + 1):
+                for dy in range(-radius, radius + 1):
+                    for dz in range(-radius, radius + 1):
+                        if 0 <= x + dx < arr.shape[0] and 0 <= y + dy < arr.shape[1] and 0 <= z + dz < arr.shape[2]:
+                            if dx**2 + dy**2 + dz**2 <= radius**2:  # Approximate sphere
+                                new_arr[x + dx, y + dy, z + dz] = 1
+        
+        return new_arr
+
+
+def generate_skeleton_based_data(shape=(64, 64, 64), num_lines=4, hole_length=20):
     """Wrapper function that creates a 3D artificial dataset with skeleton-like structures."""
-    generator = ArtificialSkeletonGeneratorMiddleBreak(shape=shape, num_lines=1) # 0.000005 times shape^3
-    skeleton_data, broken_skeleton = generator.generate_single_skeleton_broken_middle(hole_length=4)
+    generator = ArtificialSkeletonGeneratorMiddleBreak(shape=shape) # 0.000005 times shape^3
+    skeleton_data, broken_skeleton = generator.generate_single_skeleton_broken_middle(hole_length=20, num_lines=num_lines)
     
     skeleton_data = skeleton_data[np.newaxis, ...]  # Adds a new channel dimension at axis 0
     broken_skeleton = broken_skeleton[np.newaxis, ...]  # Same for broken skeleton
     
     return skeleton_data, broken_skeleton
-
-
-# Generate skeleton-based artificial data
-skeleton_data, broken_skeleton = generate_skeleton_based_data(shape=(128, 128, 128))
-
-# Define save path
-save_path_full = "plots/skeleton_data.npy"
-save_path_broken = "plots/broken_skeleton.npy"
-
-# Save the 3D array to a .npy file
-np.save(save_path_full, skeleton_data)
-np.save(save_path_broken, broken_skeleton)
-
-print(f"✅ Skeleton data saved to {save_path_full} and {save_path_broken}")
-
-
-

@@ -11,16 +11,15 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 
 class SkeletonDataset(Dataset):
-    def __init__(self, num_samples=100, shape=(32, 32, 32), transform=None):
+    def __init__(self, num_samples=100, transform=None):
         self.num_samples = num_samples
-        self.shape = shape
         self.transform = transform
 
     def __len__(self):
         return self.num_samples
 
     def __getitem__(self, idx):
-        skeleton, broken_skeleton = generate_skeleton_based_data(self.shape)
+        skeleton, broken_skeleton = generate_skeleton_based_data()
 
         # Apply transforms separately
         if self.transform:
@@ -31,8 +30,7 @@ class SkeletonDataset(Dataset):
 
 
 # Use CacheDataset
-shape = (32, 32, 32)
-dataset = CacheDataset(data=SkeletonDataset(num_samples=8192, shape=shape, transform=transform), cache_rate=1.0)
+dataset = CacheDataset(data=SkeletonDataset(num_samples=4096, transform=transform), cache_rate=1.0)
 
 # Move to device (MPS or CUDA)
 model = CustomUNet().to(device)
@@ -65,12 +63,12 @@ loss_fn = DiceFocalLoss(sigmoid=True, squared_pred=True, to_onehot_y=False)
 
 
 # Optimizer
-optimizer = optim.Adam(model.parameters(), lr=0.003)
+optimizer = optim.Adam(model.parameters(), lr=0.001)
 
 # Define MONAI Trainer (⚡ Updated paths)
 trainer = SupervisedTrainer(
     device=device,
-    max_epochs=10,
+    max_epochs=30,
     train_data_loader=dataloader,
     network=model,
     optimizer=optimizer,
