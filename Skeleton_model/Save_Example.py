@@ -3,7 +3,9 @@ import torch
 import matplotlib.pyplot as plt
 import numpy as np
 from Skeleton_model.model import CustomUNet, transform
-from Skeleton_model.test_art_data import generate_skeleton_based_data
+from Skeleton_model.Data_Generation import generate_skeleton_based_data
+from Skeleton_model.Evaluate_utils import remove_non_touching_components
+from Skeleton_model.SkeletonDataset import SkeletonDataset
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -12,7 +14,8 @@ plots_dir = "plots"
 os.makedirs(plots_dir, exist_ok=True)
 
 # Define model checkpoint path
-model_path = "model_checkpoints/model.pt"
+model_id = "dilation0"
+model_path = f"model_checkpoints/model_{model_id}.pt"
 
 # Ensure the file exists before loading
 if not os.path.exists(model_path):
@@ -28,32 +31,39 @@ model.eval()
 print(f"✅ Model loaded successfully from {model_path}")
 
 # Define the shape of the 3D data
-shape_single_dim = 128
+shape_single_dim = 256
 shape = (shape_single_dim,) * 3
-amount_of_data = 10
+amount_of_data = 1
 
 # Initialize arrays to store 10 sets of data
 actual_skeletons = np.zeros((amount_of_data, *shape))
 broken_skeletons = np.zeros((amount_of_data, *shape))
 predicted_gradients = np.zeros((amount_of_data, *shape))
 
+dataset = SkeletonDataset(num_samples=1, patch_size=shape)
+
 for i in range(amount_of_data):
     # Generate a new black input and actual gradient
-    actual_skeleton, broken_skeleton = generate_skeleton_based_data(shape=shape, num_lines=6, hole_length=20)
+    #actual_skeleton, broken_skeleton = generate_skeleton_based_data()#, num_lines=6, hole_length=20)
+    sample = dataset[i]
+    actual_skeleton = sample["image"].squeeze().numpy()
+    broken_skeleton = sample["label"].squeeze().numpy()
     
     # Store the generated data
     actual_skeletons[i] = actual_skeleton
     broken_skeletons[i] = broken_skeleton
 
     # Apply the correct transform
-    broken_skeleton_tensor = transform(broken_skeleton).unsqueeze(0).to(device)  # Move to device
+    actual_skeleton_tensor = transform(actual_skeleton[np.newaxis,...]).unsqueeze(0).to(device)  # Move to device
 
-    # Predict the gradient
+    # Predict the gaps
     with torch.no_grad():
-        predicted_gradient = model(broken_skeleton_tensor)
+        predicted_gradient = model(actual_skeleton_tensor)
 
     # Store the predicted gradient
     predicted_gradients[i] = predicted_gradient.cpu().squeeze().numpy()
+
+    #predicted_gradients[i] = remove_non_touching_components(predicted_gradients[i], actual_skeletons[i])
 
 # Define save paths
 save_path_full = os.path.join(plots_dir, "skeleton_data.npy")
