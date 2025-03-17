@@ -20,5 +20,5 @@ class CustomUNet(nn.Module):
 # Define transforms **without applying them to a dict**
 transform = Compose([
     ScaleIntensity(),  # Normalize values between 0 and 1
-    ToTensor()
+    ToTensor(),
 ])

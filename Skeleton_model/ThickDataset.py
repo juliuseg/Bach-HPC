@@ -3,9 +3,10 @@ import torch
 from torch.utils.data import Dataset
 import os
 from monai.data.meta_tensor import MetaTensor
+from scipy.ndimage import label
 
 
-class SkeletonDataset(Dataset):
+class ThickDataset(Dataset):
     def __init__(self, num_samples=100, patch_size=(32, 32, 32), transform=None):
         """
         Dataset that extracts random 32x32x32 patches from the full 3D image and label.
@@ -17,21 +18,15 @@ class SkeletonDataset(Dataset):
         """
         directory = "/work3/s204427"
 
-        # image_path = os.path.join(directory, "skeleton_data_ver2.npy") # Remove # on [0] !!! ON LOAD
-        # label_path = os.path.join(directory, "broken_skeleton_ver2.npy") #  Remove # on [0] !!! ON LOAD
+        image_path = os.path.join(directory, "skeleton_data_thick_1024.npy") # Remove # on [0] !!! ON LOAD
 
-        # self.image = np.load(image_path).astype(np.uint8)[0]  # Load full 3D image
-        # self.label = np.load(label_path).astype(np.uint8)[0]  # Load full 3D label
+        label_path = os.path.join(directory, "broken_skeleton_thick_1024.npy") #  Remove # on [0] !!! ON LOAD
 
-        image_path = os.path.join(directory, "narwhal_data_patch.npy") # Remove # on [0] !!! ON LOAD
-        label_path = os.path.join(directory, "narwhal_data_patch.npy") #  Remove # on [0] !!! ON LOAD
 
-        self.image = np.load(image_path).astype(np.uint8)  # Load full 3D image
-        self.label = np.load(label_path).astype(np.uint8)  # Load full 3D label
-        
-        print ("image shape:",self.image.shape)
+        self.image = np.load(image_path)[0].astype(np.uint8)  # Load full 3D image
+        self.label = np.load(label_path)[0].astype(np.uint8)  # Load full 3D label
 
-        # divide by 255
+        # # divide by 255
         # self.image = self.image / 255
         # self.label = self.label / 255
 
@@ -68,6 +63,8 @@ class SkeletonDataset(Dataset):
         skeleton_patch = self.image[x:x + self.patch_size[0], y:y + self.patch_size[1], z:z + self.patch_size[2]]
         broken_skeleton_patch = self.label[x:x + self.patch_size[0], y:y + self.patch_size[1], z:z + self.patch_size[2]]
 
+        broken_skeleton_patch = self.remove_border_holes(broken_skeleton_patch)
+
         # Apply transformations (if provided)
         if self.transform:
             skeleton_patch = self.transform(skeleton_patch)
@@ -77,6 +74,31 @@ class SkeletonDataset(Dataset):
             "image": to_tensor(skeleton_patch[np.newaxis, ...]),  # Add channel dim
             "label": to_tensor(broken_skeleton_patch[np.newaxis, ...])
         }
+    
+    def remove_border_holes(self, hole_skeleton):
+        connectivity = np.ones((3, 3, 3))
+        labeled_holes, num_holes = label(hole_skeleton, structure=connectivity)
+
+        # Create a single 3D border mask
+        border = np.zeros_like(hole_skeleton, dtype=bool)
+        border[0, :, :] = True
+        border[-1, :, :] = True
+        border[:, 0, :] = True
+        border[:, -1, :] = True
+        border[:, :, 0] = True
+        border[:, :, -1] = True
+
+        # Find labels that touch the border
+        border_labels = np.unique(labeled_holes[border])  # Get all hole labels that touch the border
+        border_labels = border_labels[border_labels > 0]  # Remove background (0)
+
+        # Create a mask for all holes to remove
+        remove_mask = np.isin(labeled_holes, border_labels)
+
+        # Remove holes touching the border
+        hole_skeleton[remove_mask] = 0
+
+        return hole_skeleton
 
 def to_numpy(data):
         """Convert MetaTensor or Torch Tensor to NumPy before passing to torch.from_numpy()."""

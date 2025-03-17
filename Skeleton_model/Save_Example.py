@@ -1,3 +1,4 @@
+import Skeleton_model.No_Warn
 import os
 import torch
 import matplotlib.pyplot as plt
@@ -5,7 +6,8 @@ import numpy as np
 from Skeleton_model.model import CustomUNet, transform
 from Skeleton_model.Data_Generation import generate_skeleton_based_data
 from Skeleton_model.Evaluate_utils import remove_non_touching_components
-from Skeleton_model.SkeletonDataset import SkeletonDataset
+#from Skeleton_model.SkeletonDataset import SkeletonDataset
+from Skeleton_model.ThickDataset_2 import ThickDataset_2
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -14,7 +16,7 @@ plots_dir = "plots"
 os.makedirs(plots_dir, exist_ok=True)
 
 # Define model checkpoint path
-model_id = "dilation0"
+model_id = "thick"
 model_path = f"model_checkpoints/model_{model_id}.pt"
 
 # Ensure the file exists before loading
@@ -31,7 +33,7 @@ model.eval()
 print(f"✅ Model loaded successfully from {model_path}")
 
 # Define the shape of the 3D data
-shape_single_dim = 256
+shape_single_dim = 64
 shape = (shape_single_dim,) * 3
 amount_of_data = 1
 
@@ -40,7 +42,7 @@ actual_skeletons = np.zeros((amount_of_data, *shape))
 broken_skeletons = np.zeros((amount_of_data, *shape))
 predicted_gradients = np.zeros((amount_of_data, *shape))
 
-dataset = SkeletonDataset(num_samples=1, patch_size=shape)
+dataset = ThickDataset_2(num_samples=1, patch_size=shape)
 
 for i in range(amount_of_data):
     # Generate a new black input and actual gradient

@@ -2,6 +2,11 @@ import numpy as np
 from Skeleton_model.st3d import structure_tensor, eig_special
 from scipy.ndimage import label, binary_dilation
 
+from Skeleton_model.model import CustomUNet, transform
+from Skeleton_model.Baseline_model import SkeletonBaselineModel
+import torch
+
+
 
 def mean_direction(vecs):
     """Compute mean direction of a set of unit vectors."""
@@ -155,3 +160,35 @@ def remove_non_touching_components(predicted_hole, actual_skeleton):
     filtered_predicted_hole = np.where(mask, predicted_hole, 0)
 
     return filtered_predicted_hole
+
+def model_for_iterations(actual_skeleton, model, transform, device, iterations=1):
+    accumulated_prediction = np.zeros_like(actual_skeleton[0])  # Initialize an empty array to sum predictions
+    if (isinstance(model, SkeletonBaselineModel)):
+        iterations = 1
+
+    for _ in range(iterations):
+        print ("Iteration: ", _)
+        if (isinstance(model, SkeletonBaselineModel)):
+            
+            predicted_hole = model.get_prediction(actual_skeleton[0])[0]
+        else :
+            # Apply the correct transform
+            actual_skeleton_tensor = transform(actual_skeleton).unsqueeze(0).to(device)  # Move to device
+
+            # Predict the gaps
+            with torch.no_grad():
+                predicted_hole = model(actual_skeleton_tensor)
+
+            predicted_hole = predicted_hole.cpu().squeeze().numpy()
+
+
+        # Convert prediction
+        predicted_hole = convert_prediction(predicted_hole)
+
+        # Accumulate predictions
+        accumulated_prediction += predicted_hole  # Add to accumulated predictions
+
+        # Update actual_skeleton with the predicted_hole for the next iteration
+        actual_skeleton = np.maximum(actual_skeleton, predicted_hole)
+
+    return accumulated_prediction  # Return the summed predictions
