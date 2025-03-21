@@ -1178,7 +1178,7 @@ def generate_skeleton_based_data(shape=(64,64,64), total_sum=500, num_lines=20):
     start_time = time.time()
 
     generator = ArtificialSkeletonGeneratorExtended(shape=shape) # 0.000005 times shape^3
-    skeleton_data, broken_skeleton = generator.generate_broken_skeleton_data(total_sum=total_sum, num_lines=num_lines, dilation=1) # For 64: 500, 20
+    skeleton_data, broken_skeleton = generator.generate_broken_skeleton_data(total_sum=total_sum, num_lines=num_lines, dilation=0) # For 64: 500, 20
     skeleton_data = skeleton_data[np.newaxis, ...]  # Adds a new channel dimension at axis 0
 
     broken_skeleton = broken_skeleton[np.newaxis, ...]  # Same for broken skeleton

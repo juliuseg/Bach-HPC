@@ -17,6 +17,7 @@ class SkeletonDataset(Dataset):
         """
         directory = "/work3/s204427"
 
+
         # image_path = os.path.join(directory, "skeleton_data_ver2.npy") # Remove # on [0] !!! ON LOAD
         # label_path = os.path.join(directory, "broken_skeleton_ver2.npy") #  Remove # on [0] !!! ON LOAD
 

@@ -1,8 +1,14 @@
 import numpy as np
+import matplotlib.pyplot as plt
 from scipy.ndimage import convolve
 import time
 from skimage.draw import line_nd
+
 from scipy.spatial import cKDTree
+
+
+
+
 
 class SkeletonBaselineModel:
     """
@@ -14,7 +20,7 @@ class SkeletonBaselineModel:
     - Uses a basic connection strategy (e.g., nearest neighbor).
     """
 
-    def __init__(self, search_radius=12):
+    def __init__(self, search_radius=12, dilation=0):
         """
         Initializes the baseline model.
 
@@ -22,27 +28,21 @@ class SkeletonBaselineModel:
             search_radius (int): The maximum distance to search for endpoint connections.
         """
         self.search_radius = search_radius
+        self.dilation = dilation
 
     def get_prediction(self, data):
         start_time = time.time()
-        # print(f"{data.shape} skeletonized, unique values: {np.unique(data)}")
-        # normalize data by dividing by max(max(data),1)
-        data = data.astype(np.float32)
-        data = data / np.max([np.max(data),1])
-
-
+        print(f"{data.shape} skeletonized, unique values: {np.unique(data)}")
         endpoints = self.find_endpoints(data)
-        # print (f"{endpoints.shape} endpoints ")
-        
+        print (f"{endpoints.shape} endpoints ")
 
         skeleton_coords, skeleton_vectors = self.extract_skeleton_vectors_simple(data.astype(np.float32), endpoints.astype(np.float32))
-
         skeleton_coords, skeleton_vectors = self.filter_valid_vectors(skeleton_coords, skeleton_vectors)
-        
-        
+
+
         # Connect endpoints
         connected_endpoints = self.connect_endpoints(skeleton_coords, skeleton_vectors, shape=data.shape)
-        # print(f"Connected endpoints in {time.time() - start_time} seconds")
+        print(f"Connected endpoints in {time.time() - start_time} seconds")
         return connected_endpoints, endpoints, skeleton_coords, skeleton_vectors
 
 
@@ -57,8 +57,6 @@ class SkeletonBaselineModel:
         Returns:
             np.ndarray: A 3D binary array of the same shape with only endpoints marked as 1.
         """
-
-
         # Define a 3D connectivity kernel (26-connectivity)
         kernel = np.ones((3, 3, 3), dtype=int)
         kernel[1, 1, 1] = 0  # Exclude the center voxel
@@ -69,12 +67,7 @@ class SkeletonBaselineModel:
         # Endpoints are voxels with exactly **one** neighbor
         endpoints = (neighbor_count <= 1) & (skeleton == 1)
 
-        # print (f"Unique values in endpoints: {np.unique(endpoints)}")
-
-        # print(f"Amount of endpoints: {np.sum(endpoints)}")
-        endpoints = endpoints.astype(np.float16)
-
-        # print ("amount of endpoints from find func: ", np.sum(endpoints))
+        print(f"Amount of endpoints: {np.sum(endpoints)}")
         return endpoints.astype(np.float16)  # Return a binary 3D array with only endpoints
 
 
@@ -95,15 +88,24 @@ class SkeletonBaselineModel:
         Returns:
             np.ndarray: 3D binary array (1 where new connections are made, 0 elsewhere).
         """
-        # print(f"Endpoints shape: {endpoints.shape}")
-        # print(f"Vectors shape: {vectors.shape}")
-        # print(f"Shape: {shape}")
-
         # Initialize output connection array
         connections = np.zeros(shape, dtype=np.uint8)
 
+        # Timing dictionary
+        timing = {
+            "KDTree_build": 0,
+            "query_ball_point": 0,
+            "filter_indices": 0,
+            "find_closest": 0,
+            "vector_computation": 0,
+            "dot_product_checks": 0,
+            "draw_line": 0
+        }
+
         # Build a KD-Tree for fast nearest-neighbor searching
+        start_time = time.time()
         tree = cKDTree(endpoints)
+        timing["KDTree_build"] = time.time() - start_time
 
         # Keep track of which endpoints have been used
         used = np.zeros(len(endpoints), dtype=bool)
@@ -113,41 +115,66 @@ class SkeletonBaselineModel:
                 continue  # Skip if already used
 
             # Find nearby endpoints within search radius
+            start_time = time.time()
             indices = tree.query_ball_point(p1, search_radius)
+            timing["query_ball_point"] += time.time() - start_time
 
             # Filter out already used points and self-matches
+            start_time = time.time()
             indices = [j for j in indices if j != i and not used[j]]
+            timing["filter_indices"] += time.time() - start_time
+
             if not indices:
                 continue  # No valid matches
-            #print (f"Found some indicies")
+
             # Pick the closest valid match
-            closest_idx = min(indices, key=lambda j: np.linalg.norm(endpoints[j] - p1))
+            start_time = time.time()
+            # Pick the closest valid match# Get multiple closest neighbors
+            _, candidates = tree.query(p1, k=min(5, len(endpoints)))  # Get up to 5 nearest
+
+            # Ensure candidates are valid and not already used
+            valid_candidates = [j for j in candidates if j in indices and not used[j]]
+
+            if valid_candidates:
+                # Pick the closest from the filtered candidates
+                closest_idx = min(valid_candidates, key=lambda j: np.linalg.norm(endpoints[j] - p1))
+            else:
+                continue  # Skip if no valid candidates
+            timing["find_closest"] += time.time() - start_time
+
             p2 = endpoints[closest_idx]
             v2 = vectors[closest_idx]
 
             # Compute vector between p1 and p2
-            connection_vector = p2.astype(np.float32) - p1.astype(np.float32)  # Ensure float type
+            start_time = time.time()
+            connection_vector = p2.astype(np.float32) - p1.astype(np.float32)
             connection_vector /= np.linalg.norm(connection_vector)  # Normalize
-
+            timing["vector_computation"] += time.time() - start_time
 
             # Check conditions:
-            # 1. Ensure the vectors are pointing towards each other (dot product should be < 0)
+            start_time = time.time()
             if np.dot(v1, v2) >= 0:
+                print (f"skipped with: {np.dot(v1, v2)}: v1, v2", v1, v2)
                 continue  # Skip this pair
 
-
-            # 2. Ensure the connection vector aligns with the first vector (dot product should be > 0)
-            # Have it a bit more than 0 to focus beam the vector
             if np.dot(v1, connection_vector) <= 0.0:
+                print (f"skipped{np.dot(v1, connection_vector)}: v1, connection_vector", v1, connection_vector)
                 continue  # Skip this pair
+            timing["dot_product_checks"] += time.time() - start_time
 
             # Mark both endpoints as used
             used[i] = used[closest_idx] = True
-            #print (f"Connecting {p1} and {p2}")
-            # Draw a connection between p1 and p2
-            self.draw_line(connections, p1, p2)
 
-        # print number of connections:
+            # Draw a connection between p1 and p2
+            start_time = time.time()
+            self.draw_line(connections, p1, p2)
+            timing["draw_line"] += time.time() - start_time
+
+        # Print timing results
+        print("\n--- Performance Timing ---")
+        for key, value in timing.items():
+            print(f"{key}: {value:.6f} seconds")
+
         print(f"Amount of connections: {np.sum(connections)}")
         return connections.astype(np.float32)
     
@@ -205,7 +232,7 @@ class SkeletonBaselineModel:
         return outward_vectors
 
 
-    def extract_skeleton_vectors_simple(self, skeleton_data, sigma=2, rho=5):
+    def extract_skeleton_vectors_simple(self, skeleton_data, mask=None, sigma=2, rho=5):
         """
         Computes structure tensors and extracts dominant eigenvectors for a given skeletonized dataset.
 
@@ -220,12 +247,11 @@ class SkeletonBaselineModel:
                 - vectors (np.ndarray): Array of shape (N, 3) containing dominant eigenvectors at those locations.
         """
         # Extract voxel positions where skeleton exists
-        # print (f"Unique values in skeleton_data: {np.unique(skeleton_data)}")
-        coords = np.argwhere(skeleton_data)
+        coords = np.argwhere(mask)
 
         vectors = self.compute_outward_vectors(coords, skeleton_data)
 
-        return coords.astype(np.float32), vectors.astype(np.float32)
+        return coords, vectors
 
     
     def draw_line(self, volume, p1, p2):

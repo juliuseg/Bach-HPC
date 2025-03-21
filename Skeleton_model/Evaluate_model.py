@@ -7,7 +7,7 @@ from Skeleton_model.model import CustomUNet, transform
 #from Skeleton_model.Data_Generation import generate_skeleton_based_data
 # from Skeleton_model.SkeletonDataset import SkeletonDataset
 from Skeleton_model.SkeletonDataset import SkeletonDataset
-from Skeleton_model.Evaluate_utils import convert_prediction, get_skeleton_vectors, remove_non_touching_components, perm_test, model_for_iterations
+from Skeleton_model.Evaluate_utils import convert_prediction, get_skeleton_vectors, remove_non_touching_components, perm_test, model_for_iterations, CalculateTortuosity, CalculateCompactness
 from scipy.ndimage import label
 from Skeleton_model.Baseline_model import SkeletonBaselineModel
 
@@ -15,7 +15,7 @@ from Skeleton_model.Baseline_model import SkeletonBaselineModel
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 # Get the model from the saved .pt file
-model_id = "dilation0_new"
+model_id = "dilation0"
 
 model_path = "model_checkpoints/model_"+str(model_id)+".pt"
 if not os.path.exists(model_path):
@@ -30,7 +30,7 @@ model.eval()
 print(f"✅ Model loaded successfully from {model_path}")
 
 # Baseline model
-bs_model = SkeletonBaselineModel(search_radius=15)
+bs_model = SkeletonBaselineModel(search_radius=15, dilation=2)
 
 print ("Generating skeleton data")
 
@@ -99,6 +99,8 @@ for i in range(num_iterations):
         np.save(os.path.join(save_dir, f"broken_skeleton_{i}.npy"), broken_skeleton)
 
 
+    
+    print ("Labeling connected components")
     # Label connected components
     connectivity = np.ones((3, 3, 3))
     # Actual skeleton
@@ -107,7 +109,21 @@ for i in range(num_iterations):
     predicted_hole_labeled, predicted_hole_num_labels = label(actual_skeleton+predicted_hole, structure=connectivity)
     # Predicted hole baseline
     predicted_hole_bs_labeled, predicted_hole_bs_num_labels = label(actual_skeleton+predicted_hole_bs, structure=connectivity)
+    print ("Calculating tortuosity and compactness")
+    # Calculate tortuosity of each skeleton in actual_skeleton and predicted_hole and predicted_hole_bs
+    # Use the labeled versions for easy
+    actual_skeleton_tortuosity = CalculateTortuosity(actual_skeleton_labeled)
+    predicted_hole_tortuosity = CalculateTortuosity(predicted_hole_labeled)
+    predicted_hole_bs_tortuosity = CalculateTortuosity(predicted_hole_bs_labeled)
+    # Print each
+    print(f"📏 Tortuosity - Actual: {actual_skeleton_tortuosity}, Predicted: {predicted_hole_tortuosity}, Baseline: {predicted_hole_bs_tortuosity}")
 
+    # # Calculate Compactness of entire actual_skeleton, predicted_hole and predicted_hole_bs
+    # actual_skeleton_compactness = CalculateCompactness(actual_skeleton)
+    # predicted_hole_compactness = CalculateCompactness(predicted_hole)
+    # predicted_hole_bs_compactness = CalculateCompactness(predicted_hole_bs)
+    # # Print each
+    # print(f"🔲 Compactness - Actual: {actual_skeleton_compactness}, Predicted: {predicted_hole_compactness}, Baseline: {predicted_hole_bs_compactness}")
 
     # Get data for p-values for model
     _skeleton_vectors, _predicted_vectors  = get_skeleton_vectors(actual_skeleton, predicted_hole)
@@ -124,8 +140,8 @@ for i in range(num_iterations):
     # Print labels
     print(f"📌 Labels - Actual: {actual_skeleton_num_labels}, Predicted: {predicted_hole_num_labels}, Baseline: {predicted_hole_bs_num_labels}")
 
-    label_ratios.append(actual_skeleton_num_labels / (predicted_hole_num_labels + 1e-6))  # Avoid division by zero
-    label_ratios_bs.append(actual_skeleton_num_labels / (predicted_hole_bs_num_labels + 1e-6))  # Avoid division by zero
+    label_ratios.append(actual_skeleton_num_labels / np.max([predicted_hole_num_labels, 1e-6]))  # Avoid division by zero
+    label_ratios_bs.append(actual_skeleton_num_labels / np.max([predicted_hole_bs_num_labels, 1e-6]))  # Avoid division by zero
 
 # Compute permutation tests
 p_value = perm_test(skeleton_vectors, predicted_vectors, 1000, 1000, 10000)

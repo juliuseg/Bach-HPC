@@ -1,11 +1,12 @@
 import numpy as np
 from Skeleton_model.st3d import structure_tensor, eig_special
-from scipy.ndimage import label, binary_dilation
+from scipy.ndimage import label, binary_dilation, binary_erosion
 
 from Skeleton_model.model import CustomUNet, transform
 from Skeleton_model.Baseline_model import SkeletonBaselineModel
 import torch
-
+import time
+from tqdm import tqdm
 
 
 def mean_direction(vecs):
@@ -192,3 +193,103 @@ def model_for_iterations(actual_skeleton, model, transform, device, iterations=1
         actual_skeleton = np.maximum(actual_skeleton, predicted_hole)
 
     return accumulated_prediction  # Return the summed predictions
+import numpy as np
+from scipy.ndimage import convolve, distance_transform_edt
+from skimage.graph import route_through_array
+from scipy.spatial.distance import cdist
+
+def find_endpoints_fast(labeled_skeleton):
+    """
+    Finds endpoints in a labeled 3D skeletonized image in a single pass using convolution.
+    
+    Parameters:
+        labeled_skeleton (np.ndarray): 3D array where different structures have unique labels.
+        
+    Returns:
+        np.ndarray: 3D array with the same shape where endpoints are marked with their label values.
+    """
+    # Define 3D connectivity kernel (26-connectivity)
+    kernel = np.ones((3, 3, 3), dtype=int)
+    kernel[1, 1, 1] = 0  # Exclude center voxel
+
+    # Count neighbors for each voxel
+    neighbor_count = convolve((labeled_skeleton > 0).astype(int), kernel, mode='constant', cval=0)
+
+    # Endpoints: voxels with exactly 1 neighbor
+    endpoints_mask = (neighbor_count == 1) & (labeled_skeleton > 0)
+
+    # Assign endpoints based on their single connected neighbor's value
+    labeled_neighbors = convolve(labeled_skeleton, kernel, mode='constant', cval=0)
+    labeled_endpoints = endpoints_mask * labeled_neighbors  # Assign labels
+
+    return labeled_endpoints
+
+
+def CalculateTortuosity(labeled_skeleton):
+    """
+    Computes tortuosity in a single pass by detecting endpoints and shortest paths.
+
+    Parameters:
+        labeled_skeleton (np.ndarray): 3D array where different structures have unique labels.
+
+    Returns:
+        dict: Mapping of label -> tortuosity.
+    """
+    tortuosity_values = {}
+    
+    # Find endpoints efficiently
+    labeled_endpoints = find_endpoints_fast(labeled_skeleton)
+    
+    # Get unique labels
+    labels = np.unique(labeled_skeleton)
+    labels = labels[labels > 0]  # Remove background (label 0)
+    # print (len(labels))
+    # Use tqdm for progress bar
+
+    with tqdm(total=len(labels), desc="Calculating Tortuosity", unit="structure") as pbar:
+        for label_value in labels:
+            # Extract endpoints for this label
+            endpoints = np.array(np.where(labeled_endpoints == label_value)).T
+
+            if len(endpoints) < 2:
+                pbar.update(1)
+                continue  # Skip if fewer than 2 endpoints
+
+            # Compute total skeleton length
+            skeleton_length = np.sum(labeled_skeleton == label_value)
+
+            # Find the two most distant endpoints
+            dist_matrix = cdist(endpoints, endpoints)
+            idx1, idx2 = np.unravel_index(np.argmax(dist_matrix), dist_matrix.shape)
+            p1, p2 = endpoints[idx1], endpoints[idx2]
+
+            # Use Euclidean distance instead of pathfinding
+            shortest_path_length = np.linalg.norm(p1 - p2)
+
+            # Compute Tortuosity
+            tortuosity = skeleton_length / shortest_path_length if shortest_path_length > 0 else 1
+            tortuosity_values[label_value] = tortuosity
+
+            # Update progress bar
+            pbar.update(1)
+
+    # Get the mean:
+    mean_tortuosity = np.mean(list(tortuosity_values.values()))
+    print (mean_tortuosity)
+    return mean_tortuosity
+
+def CalculateCompactness(skeleton):
+    """surface^1.5 / volume
+       edited by s204427 but got from: https://github.com/jmlipman/RatLesNetv2/blob/master/lib/metric.py#L78
+    """
+    pred = skeleton
+    surface = np.sum(border_np(pred))
+    volume = np.sum(pred)
+    result = (surface**1.5)/volume
+    return result
+
+def border_np(y):
+    """Calculates the border of a 3D binary map.
+       From NiftyNet.
+    """
+    return y - binary_erosion(y)
