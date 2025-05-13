@@ -1,23 +1,84 @@
 # mnist_job.sh
 #!/bin/bash
-#BSUB -J Bach_training           # Job name
-#BSUB -q gpua100                   # 
+#BSUB -J Bach_train               # Job name
+#BSUB -q gpuv100                  # c02613 or gpua100 or gpuv100
 #BSUB -gpu "num=1"                # Request 1 GPU in exclusive mode
 #BSUB -n 4                        # Request 4 CPU cores (required)
 #BSUB -R "span[hosts=1]"          # Ensure resources are on a single node
-#BSUB -W 72:00                    # Walltime (72 hours)
-#BSUB -R "rusage[mem=32768]"       # Request 8GB of system memory
-#BSUB -o ./logs/outputLogs/output_%J.log            # Output file
-#BSUB -e ./logs/errorLogs/error_%J.log             # Error file
+#BSUB -W 24:00                    # Walltime (72 hours)
+#BSUB -R "rusage[mem=32GB]"       # Request 8GB of system memory
+#BSUB -o ./logs/outputLogs/bach_train_%J.log            # Output file
+#BSUB -e ./logs/errorLogs/bach_train_%J.log             # Error file
+#BSUB -B                 # Send email when the job begins
+#BSUB -N                 # Send email when the job ends
 
 lscpu
 
-# Load necessary modules
 module load python3/3.10.12
 module load cuda/12.1
 
-# Activate virtual environment
 source /zhome/1a/a/156609/project/path/.venv/bin/activate
 
-# Run the PyTorch training script
-python3 -m Skeleton_model.Train
+notify_done() {
+    msg="$1"
+    bsub -q hpc -u s204427@dtu.dk -N -J notify_done \
+         -o /dev/null -e /dev/null \
+         /bin/bash -c "echo 'DONE: $msg at \$(date)'"
+}
+
+# (1) gap_size, (2) skeleton(bool: 0,1), (3) gap_chance, (4) num_lines, (5) wobble, (6) loss function
+
+Baseline
+echo "Training on: gapsize 10, gap_chance 0.3, num_lines 15, wobble 1.5, loss function: dice"
+python3 -m Skeleton_model.Train 10 1 0.3 15 1.5 "dice"
+notify_done "Training on: gapsize 10, gap_chance 0.3, num_lines 15, wobble 1.5, loss function: dice"
+
+# Vary gap_size
+echo "Training on: gapsize 5, gap_chance 0.3, num_lines 15, wobble 1.5, loss function: dice"
+python3 -m Skeleton_model.Train 5 1 0.3 15 1.5 "dice"
+notify_done "Training on: gapsize 5, gap_chance 0.3, num_lines 15, wobble 1.5, loss function: dice"
+
+echo "Training on: gapsize 20, gap_chance 0.3, num_lines 15, wobble 1.5, loss function: dice"
+python3 -m Skeleton_model.Train 20 1 0.3 15 1.5 "dice"
+notify_done "Training on: gapsize 20, gap_chance 0.3, num_lines 15, wobble 1.5, loss function: dice"
+
+# Vary gap_chance
+echo "Training on: gapsize 10, gap_chance 0.1, num_lines 15, wobble 1.5, loss function: dice"
+python3 -m Skeleton_model.Train 10 1 0.1 15 1.5 "dice"
+notify_done "Training on: gapsize 10, gap_chance 0.1, num_lines 15, wobble 1.5, loss function: dice"
+
+echo "Training on: gapsize 10, gap_chance 0.5, num_lines 15, wobble 1.5, loss function: dice"
+python3 -m Skeleton_model.Train 10 1 0.5 15 1.5 "dice"
+notify_done "Training on: gapsize 10, gap_chance 0.5, num_lines 15, wobble 1.5, loss function: dice"
+
+# Vary num_lines
+echo "Training on: gapsize 10, gap_chance 0.3, num_lines 7, wobble 1.5, loss function: dice"
+python3 -m Skeleton_model.Train 10 1 0.3 7 1.5 "dice"
+notify_done "Training on: gapsize 10, gap_chance 0.3, num_lines 7, wobble 1.5, loss function: dice"
+
+echo "Training on: gapsize 10, gap_chance 0.3, num_lines 30, wobble 1.5, loss function: dice"
+python3 -m Skeleton_model.Train 10 1 0.3 30 1.5 "dice"
+notify_done "Training on: gapsize 10, gap_chance 0.3, num_lines 30, wobble 1.5, loss function: dice"
+
+# Vary wobble
+echo "Training on: gapsize 10, gap_chance 0.3, num_lines 15, wobble 1.0, loss function: dice"
+python3 -m Skeleton_model.Train 10 1 0.3 15 1.0 "dice"
+notify_done "Training on: gapsize 10, gap_chance 0.3, num_lines 15, wobble 1.0, loss function: dice"
+
+echo "Training on: gapsize 10, gap_chance 0.3, num_lines 15, wobble 2.0, loss function: dice"
+python3 -m Skeleton_model.Train 10 1 0.3 15 2.0 "dice"
+notify_done "Training on: gapsize 10, gap_chance 0.3, num_lines 15, wobble 2.0, loss function: dice"
+
+echo "Training on: gapsize 10, gap_chance 0.3, num_lines 15, wobble 3.0, loss function: dice"
+python3 -m Skeleton_model.Train 10 1 0.3 15 3.0 "dice"
+notify_done "Training on: gapsize 10, gap_chance 0.3, num_lines 15, wobble 3.0, loss function: dice"
+
+# Vary loss function between "conn" or "dice" or "focal"
+echo "Training on: gapsize 10, gap_chance 0.3, num_lines 15, wobble 1.5, loss function: conn"
+python3 -m Skeleton_model.Train 10 1 0.3 15 1.5 "conn"
+notify_done "Training on: gapsize 10, gap_chance 0.3, num_lines 15, wobble 1.5, loss function: conn"
+
+echo "Training on: gapsize 10, gap_chance 0.3, num_lines 15, wobble 1.5, loss function: focal"
+python3 -m Skeleton_model.Train 10 1 0.3 15 1.5 "focal"
+notify_done "Training on: gapsize 10, gap_chance 0.3, num_lines 15, wobble 1.5, loss function: focal"
+

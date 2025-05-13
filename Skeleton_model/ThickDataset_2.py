@@ -110,6 +110,16 @@ class ThickDataset_2(Dataset):
         hole_skeleton[remove_mask] = 0
 
         return hole_skeleton
+    
+    # def get_info(self):
+    #     """Returns the shape of the full image and label."""
+    #     info = {
+    #         "shape": self.images[0].shape,
+    #         "patch_size": self.patch_size,
+    #         "image_path": self.image_path,
+    #         "label_path": self.label_path
+    #     }
+    #     return self.shape
 
 def to_numpy(data):
         """Convert MetaTensor or Torch Tensor to NumPy before passing to torch.from_numpy()."""

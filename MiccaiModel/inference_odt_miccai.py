@@ -47,13 +47,8 @@ print(f"Execution on device: {device}")
 model = UNet_ODT()
 model_path = './MiccaiModel/weights/model_weights_best.pth'
 
-# Map the model to the correct device (CPU or MPS)
+# Map the model to the correct device
 model.load_state_dict(torch.load(model_path, map_location=torch.device(device)))
-
-pytorch_total_params = sum(p.numel() for p in model.parameters())
-pytorch_totaltrainable_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
-print(pytorch_total_params, pytorch_totaltrainable_params)
-
 model = model.to(device)
 model.eval()
 

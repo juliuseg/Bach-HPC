@@ -6,10 +6,6 @@ from skimage.draw import line_nd
 
 from scipy.spatial import cKDTree
 
-
-
-
-
 class SkeletonBaselineModel:
     """
     A baseline model for connecting skeleton endpoints in 3D space.
@@ -32,9 +28,9 @@ class SkeletonBaselineModel:
 
     def get_prediction(self, data):
         start_time = time.time()
-        print(f"{data.shape} skeletonized, unique values: {np.unique(data)}")
+        #print(f"{data.shape} skeletonized, unique values: {np.unique(data)}")
         endpoints = self.find_endpoints(data)
-        print (f"{endpoints.shape} endpoints ")
+        #print (f"{endpoints.shape} endpoints ")
 
         skeleton_coords, skeleton_vectors = self.extract_skeleton_vectors_simple(data.astype(np.float32), endpoints.astype(np.float32))
         skeleton_coords, skeleton_vectors = self.filter_valid_vectors(skeleton_coords, skeleton_vectors)
@@ -42,7 +38,7 @@ class SkeletonBaselineModel:
 
         # Connect endpoints
         connected_endpoints = self.connect_endpoints(skeleton_coords, skeleton_vectors, shape=data.shape)
-        print(f"Connected endpoints in {time.time() - start_time} seconds")
+        #print(f"Connected endpoints in {time.time() - start_time} seconds")
         return connected_endpoints, endpoints, skeleton_coords, skeleton_vectors
 
 
@@ -67,7 +63,7 @@ class SkeletonBaselineModel:
         # Endpoints are voxels with exactly **one** neighbor
         endpoints = (neighbor_count <= 1) & (skeleton == 1)
 
-        print(f"Amount of endpoints: {np.sum(endpoints)}")
+        #print(f"Amount of endpoints: {np.sum(endpoints)}")
         return endpoints.astype(np.float16)  # Return a binary 3D array with only endpoints
 
 
@@ -154,11 +150,11 @@ class SkeletonBaselineModel:
             # Check conditions:
             start_time = time.time()
             if np.dot(v1, v2) >= 0:
-                print (f"skipped with: {np.dot(v1, v2)}: v1, v2", v1, v2)
+                # print (f"skipped with: {np.dot(v1, v2)}: v1, v2", v1, v2)
                 continue  # Skip this pair
 
             if np.dot(v1, connection_vector) <= 0.0:
-                print (f"skipped{np.dot(v1, connection_vector)}: v1, connection_vector", v1, connection_vector)
+                # print (f"skipped{np.dot(v1, connection_vector)}: v1, connection_vector", v1, connection_vector)
                 continue  # Skip this pair
             timing["dot_product_checks"] += time.time() - start_time
 
@@ -171,11 +167,11 @@ class SkeletonBaselineModel:
             timing["draw_line"] += time.time() - start_time
 
         # Print timing results
-        print("\n--- Performance Timing ---")
-        for key, value in timing.items():
-            print(f"{key}: {value:.6f} seconds")
+        # print("\n--- Performance Timing ---")
+        # for key, value in timing.items():
+        #     print(f"{key}: {value:.6f} seconds")
 
-        print(f"Amount of connections: {np.sum(connections)}")
+        # print(f"Amount of connections: {np.sum(connections)}")
         return connections.astype(np.float32)
     
     def compute_outward_vectors(self, endpoints, skeleton):

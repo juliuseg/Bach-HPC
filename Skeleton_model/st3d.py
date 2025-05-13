@@ -9,38 +9,57 @@ Created on Thu Aug 29 11:30:17 2019
 import numpy as np
 import scipy.io
 import scipy.ndimage
-import matplotlib.pyplot as plt
+from joblib import Parallel, delayed
 
 #% STRUCTURE TENSOR 3D
+#% The function is made parallel by s204427
 
-def structure_tensor(volume, sigma, rho):
-    """ Structure tensor for 3D image data
-    Arguments:
-        volume: a 3D array of size N = slices(z)*rows(y)*columns(x)
-        sigma: a noise scale, structures smaller than sigma will be 
-            removed by smoothing
-        rho: an integration scale giving the size over the neighborhood in 
-            which the orientation is to be analysed
-    Returns:
-        an array with shape (6,N) containing elements of structure tensor 
-            s_xx, s_yy, s_zz, s_xy, s_xz, s_yz ordered acording to 
-            volume.ravel(). 
-    Author: vand@dtu.dk, 2019
-    """    # computing derivatives (scipy implementation truncates filter at 4 sigma)
+
+def compute_derivative(volume, sigma, order):
+    return scipy.ndimage.gaussian_filter(volume, sigma, order=order, mode='nearest')
+
+def compute_tensor_component(name, Vx, Vy, Vz, rho):
+    if name == "Jxx":
+        return scipy.ndimage.gaussian_filter(Vx**2, rho, mode='nearest')
+    elif name == "Jyy":
+        return scipy.ndimage.gaussian_filter(Vy**2, rho, mode='nearest')
+    elif name == "Jzz":
+        return scipy.ndimage.gaussian_filter(Vz**2, rho, mode='nearest')
+    elif name == "Jxy":
+        return scipy.ndimage.gaussian_filter(Vx * Vy, rho, mode='nearest')
+    elif name == "Jxz":
+        return scipy.ndimage.gaussian_filter(Vx * Vz, rho, mode='nearest')
+    elif name == "Jyz":
+        return scipy.ndimage.gaussian_filter(Vy * Vz, rho, mode='nearest')
+
+def structure_tensor(volume, sigma, rho, n_jobs=1):
+    """
+    Fully parallel version of structure tensor for 3D image data.
+    Computes spatial derivatives and structure tensor components in parallel.
     
-    Vz = scipy.ndimage.gaussian_filter(volume, sigma, order=[0,0,1], mode='nearest')
-    Vy = scipy.ndimage.gaussian_filter(volume, sigma, order=[0,1,0], mode='nearest')
-    Vx = scipy.ndimage.gaussian_filter(volume, sigma, order=[1,0,0], mode='nearest')
-  
-    # integrating elements of structure tensor (scipy uses sequence of 1D)
-    Jxx = scipy.ndimage.gaussian_filter(Vx**2, rho, mode='nearest')
-    Jyy = scipy.ndimage.gaussian_filter(Vy**2, rho, mode='nearest')
-    Jzz = scipy.ndimage.gaussian_filter(Vz**2, rho, mode='nearest')
-    Jxy = scipy.ndimage.gaussian_filter(Vx*Vy, rho, mode='nearest')
-    Jxz = scipy.ndimage.gaussian_filter(Vx*Vz, rho, mode='nearest')
-    Jyz = scipy.ndimage.gaussian_filter(Vy*Vz, rho, mode='nearest')
-    S = np.vstack((Jxx.ravel(), Jyy.ravel(), Jzz.ravel(), Jxy.ravel(),\
-                   Jxz.ravel(), Jyz.ravel()));
+    Args:
+        volume: 3D numpy array
+        sigma: noise smoothing scale
+        rho: integration scale
+        n_jobs: number of parallel threads (default -1 = all)
+    
+    Returns:
+        Structure tensor as a (6, N) array
+    """
+    # Step 1: Compute smoothed spatial derivatives in parallel
+    orders = [[1, 0, 0], [0, 1, 0], [0, 0, 1]]  # x, y, z
+    Vx, Vy, Vz = Parallel(n_jobs=n_jobs)(
+        delayed(compute_derivative)(volume, sigma, order) for order in orders
+    )
+
+    # Step 2: Compute structure tensor components in parallel
+    components = ["Jxx", "Jyy", "Jzz", "Jxy", "Jxz", "Jyz"]
+    tensors = Parallel(n_jobs=n_jobs)(
+        delayed(compute_tensor_component)(comp, Vx, Vy, Vz, rho) for comp in components
+    )
+
+    # Step 3: Stack and flatten into (6, N)
+    S = np.vstack([comp.ravel() for comp in tensors])
     return S
 
 def eig_special(S, full=False):
@@ -91,5 +110,8 @@ def eig_special(S, full=False):
                 axis=0), np.sum(vec[6:]**2, axis=0))))
         vec = vec/l[[0,0,0,1,1,1,2,2,2]] # division by 0 should not occur
     else: # vec is [x1 y1 z1] = v1
-        vec = vec/np.sqrt(np.sum(vec**2, axis=0))
+        # vec = vec/np.sqrt(np.sum(vec**2, axis=0))
+        norms = np.sqrt(np.sum(vec**2, axis=0))
+        norms[norms == 0] = 1  # avoid division by zero
+        vec = vec / norms
     return val,vec

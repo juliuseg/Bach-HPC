@@ -3,3 +3,10 @@ plots/
 
 # ignore model_checkpoints/ directory
 model_checkpoints/
+logs/
+inference_results/
+Data_generation/generated_data/
+FullSkeletonData/
+MiccaiModel/
+saved_runs/
+evaluation_plots/

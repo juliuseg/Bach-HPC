@@ -18,23 +18,25 @@ class SkeletonDataset(Dataset):
         directory = "/work3/s204427"
 
 
-        # image_path = os.path.join(directory, "skeleton_data_ver2.npy") # Remove # on [0] !!! ON LOAD
-        # label_path = os.path.join(directory, "broken_skeleton_ver2.npy") #  Remove # on [0] !!! ON LOAD
 
-        # self.image = np.load(image_path).astype(np.uint8)[0]  # Load full 3D image
-        # self.label = np.load(label_path).astype(np.uint8)[0]  # Load full 3D label
+        self.image_path = os.path.join(directory, "1024_skeleton_only.npy") # Remove # on [0] !!! ON LOAD
+        self.label_path = os.path.join(directory, "1024_broken_skeleton_only.npy") #  Remove # on [0] !!! ON LOAD
 
-        image_path = os.path.join(directory, "narwhal_data_patch.npy") # Remove # on [0] !!! ON LOAD
-        label_path = os.path.join(directory, "narwhal_data_patch.npy") #  Remove # on [0] !!! ON LOAD
+        self.image = np.load(self.image_path).astype(np.uint8)[0]  # Load full 3D image
+        self.label = np.load(self.label_path).astype(np.uint8)[0]  # Load full 3D label
 
-        self.image = np.load(image_path).astype(np.uint8)  # Load full 3D image
-        self.label = np.load(label_path).astype(np.uint8)  # Load full 3D label
+        # image_path = os.path.join(directory, "narwhal_data_patch.npy") # Remove # on [0] !!! ON LOAD
+        # label_path = os.path.join(directory, "narwhal_data_patch.npy") #  Remove # on [0] !!! ON LOAD
+
+        # self.image = np.load(image_path).astype(np.uint8)  # Load full 3D image
+        # self.label = np.load(label_path).astype(np.uint8)  # Load full 3D label
         
         print ("image shape:",self.image.shape)
 
-        # divide by 255
-        # self.image = self.image / 255
-        # self.label = self.label / 255
+        
+        # divide by max
+        self.image = self.image / np.max(self.image)
+        self.label = self.label / np.max(self.label)
 
         # Print info like uniques of the data
         print(f"Unique values in image: {np.unique(self.image)}")
@@ -78,6 +80,16 @@ class SkeletonDataset(Dataset):
             "image": to_tensor(skeleton_patch[np.newaxis, ...]),  # Add channel dim
             "label": to_tensor(broken_skeleton_patch[np.newaxis, ...])
         }
+    
+    def get_info(self):
+        """Returns the shape of the full image and label."""
+        info = {
+            "shape": self.image.shape,
+            "patch_size": self.patch_size,
+            "image_path": self.image_path,
+            "label_path": self.label_path
+        }
+        return self.shape
 
 def to_numpy(data):
         """Convert MetaTensor or Torch Tensor to NumPy before passing to torch.from_numpy()."""
