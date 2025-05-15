@@ -8,7 +8,7 @@ from skimage.morphology import skeletonize
 
 
 class NarwhalDataset(Dataset):
-    def __init__(self, num_samples=100, patch_size=(32, 32, 32),skeleton=False, transform=None, seed=None):
+    def __init__(self, num_samples=100, patch_size=(32, 32, 32),skeleton=False, transform=None, seed=42):
         """
         Dataset that extracts random 32x32x32 patches from the full 3D image.
         

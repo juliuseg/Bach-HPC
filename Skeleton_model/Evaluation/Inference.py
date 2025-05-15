@@ -33,8 +33,21 @@ dataset_noskel = None
 
 if use_shared_dataset:
     print("📦 Loading shared datasets for all configs...")
-    dataset_skel = NarwhalDataset(num_samples=32, patch_size=(256, 256, 256), skeleton=True)
-    dataset_noskel = NarwhalDataset(num_samples=32, patch_size=(256, 256, 256), skeleton=False)
+    skeleton_configs = [name for name in config_names if getattr(all_configs, name)["skeleton"]]
+    nonskeleton_configs = [name for name in config_names if not getattr(all_configs, name)["skeleton"]]
+
+    if skeleton_configs and nonskeleton_configs:
+        print("Shared datasets loading for both skeleton=True and skeleton=False")
+        dataset_skel = NarwhalDataset(num_samples=32, patch_size=(256, 256, 256), skeleton=True)
+        dataset_noskel = NarwhalDataset(num_samples=32, patch_size=(256, 256, 256), skeleton=False)
+    elif skeleton_configs:
+        print("Shared dataset loaded, only skeleton=True")
+        dataset_skel = NarwhalDataset(num_samples=32, patch_size=(256, 256, 256), skeleton=True)
+    elif nonskeleton_configs:
+        print("Shared dataset loaded, only skeleton=False")
+        dataset_noskel = NarwhalDataset(num_samples=32, patch_size=(256, 256, 256), skeleton=False)
+    else:
+        raise ValueError("❌ No valid configs found for dataset loading.")
     print("✅ Shared datasets loaded (32 samples, 256³, both skeleton=True/False)")
 
 def run_config(config_name):
@@ -46,8 +59,8 @@ def run_config(config_name):
         return
 
     if config["model_class"] == SkeletonBaselineModel:
-        print("🟡 Using baseline model")
-        model = SkeletonBaselineModel(search_radius=15, dilation=2)
+        print(f"Using baseline model with search radius: {config['search_radius']}")
+        model = SkeletonBaselineModel(search_radius=config["search_radius"])
     else:
         model_path = config["model_path"]
         print(f"📥 Loading model from {model_path}")

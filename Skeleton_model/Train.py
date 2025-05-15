@@ -56,6 +56,8 @@ def conn_loss(pred, target, mask, lambda_param=1.0, omega=1.0, eps=1e-6):
 
     return L_R + omega * L_P
 
+start_time = time.time()
+
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 print ("Dataset loading")
@@ -65,8 +67,8 @@ shape_single_dim = 64
 shape = (shape_single_dim,) * 3
 
 # get gapsize and skeleton from arguments. gapsize first which is just an int. Then skeleton which is a boolean. make it read an int and convert that int to a boolean
-if len(sys.argv) < 7:
-    raise ValueError("Usage: python Train.py <gapsize> <skeleton> <gap_chance> <num_lines> <wobble> <loss_type>")
+if len(sys.argv) < 11:
+    raise ValueError("Usage: python Train.py <gapsize> <skeleton> <gap_chance> <num_lines> <wobble> <loss_type> <channels> <strides> <kernel_size> <name_of_model>")
 else:
     gapsize = int(sys.argv[1])
     skeleton = bool(int(sys.argv[2]))
@@ -74,7 +76,12 @@ else:
     num_lines = int(sys.argv[4])
     wobble = float(sys.argv[5])
     loss_type = sys.argv[6].lower()  # "conn" or "dice" or "focal"
-    print(f"gapsize: {gapsize}, skeleton: {skeleton}, gap_chance: {gap_chance}, num_lines: {num_lines}, wobble: {wobble}", f"loss_type: {loss_type}")
+    channels = tuple(map(int, sys.argv[7].split(',')))  
+    strides = tuple(map(int, sys.argv[8].split(',')))
+    kernel_size = int(sys.argv[9])
+    name_of_model = sys.argv[10]
+
+    print(f"gapsize: {gapsize}, skeleton: {skeleton}, gap_chance: {gap_chance}, num_lines: {num_lines}, wobble: {wobble}", f"loss_type: {loss_type}, channels: {channels}, strides: {strides}")
 
 # Full dataset
 full_dataset = Art_Dataset(
@@ -119,7 +126,7 @@ print ("Dataset loaded")
 ######################
 
 # Model
-model = CustomUNet().to(device)
+model = CustomUNet(channels=channels, strides=strides, kernel_size=kernel_size).to(device)
 
 # Ensure the save directory exists
 save_dir = "model_checkpoints"
@@ -228,16 +235,22 @@ for epoch in range(num_epochs_max):
 
     # Early stopping
     if epochs_no_improve >= patience:
-        print("⛔ Early stopping triggered")
+        print("Early stopping triggered due to no improvement in validation loss.")
         break
+
+    # Early stop due to training for more than 25 minutes
+    # if epoch > 0 and (time.time() - start_time) / 60 > 25:
+    #     print("Early stopping triggered due to training for more than 25 minutes.")
+    #     break
+
 
 print("Training done")
 
 # Save the best model
 
-model_id = f"g{gapsize}_s{skeleton}_gc{gap_chance}_l{num_lines}_w{wobble}_{loss_type}"
+model_id = name_of_model #f"model_g{gapsize}_s{skeleton}_gc{gap_chance}_l{num_lines}_w{wobble}_{loss_type}"
 timestamp = time.strftime("%Y%m%d-%H%M%S")
-model_name = f"model_{model_id}_{timestamp}"
+model_name = f"{model_id}_{timestamp}"
 # remove . from model_name
 model_name = model_name.replace(".", "")
 model_name += ".pt"

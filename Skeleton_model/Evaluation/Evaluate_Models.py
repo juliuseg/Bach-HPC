@@ -9,12 +9,17 @@ from multiprocessing import Pool
 from Skeleton_model.Evaluate_utils import (
     get_skeleton_vectors, remove_non_touching_components, perm_test, 
     CalculateTortuosity, CalculatePerforation, compute_kde_overlap, 
-    perm_test_values, generate_cut_skeleton, print_labeled_histogram
+    perm_test_values, generate_cut_skeleton, print_labeled_histogram, 
+    binary_dilation_no_endpoints,
 )
 from Skeleton_model.Evaluation.configs import all_configs
 from scipy.ndimage import label
 from skimage.morphology import skeletonize
 from scipy.ndimage import binary_closing
+
+def str2bool(v):
+    return v.lower() in ("yes", "true", "True", "t", "1")
+
 
 # ---------------------- Setup ----------------------
 if len(sys.argv) < 2:
@@ -22,6 +27,7 @@ if len(sys.argv) < 2:
 
 config_name = sys.argv[1]
 num_cores = int(sys.argv[2]) if len(sys.argv) > 2 else os.cpu_count()
+full_prediction = str2bool(sys.argv[3]) if len(sys.argv) > 3 else False
 
 print(f"\n🧠 Loading config: {config_name}, using {num_cores} cores")
 # config_module = importlib.import_module(f"Skeleton_model.Evaluation.configs.{config_name}")
@@ -45,6 +51,13 @@ def process_iteration(i):
     out = {}
     actual_skeleton = np.array(results["actual_skeletons"]).astype(np.float32)[i]
     predicted_hole = np.array(results["predicted_skeletons"]).astype(np.float32)[i]
+
+    if full_prediction:
+        predicted_hole = skeletonize(predicted_hole > 0.5).astype(np.float32)
+        predicted_hole = predicted_hole / np.max(predicted_hole)
+        predicted_hole = np.clip(predicted_hole - binary_dilation_no_endpoints(actual_skeleton), 0, 1)
+        print (f"predicted_hole shape: {predicted_hole.shape}")
+
     
     predicted_hole, num_removed, num_features = remove_non_touching_components(predicted_hole, actual_skeleton)
     out["num_removed"] = num_removed
@@ -155,7 +168,7 @@ results = {
     "p_value_tort": p_value_tort,
     "skeleton_vectors": skeleton_vectors,
     "predicted_vectors": predicted_vectors,
-    "config": config,
+    # "config": config,
 }
 
 # ---------------------- Save & Print ----------------------

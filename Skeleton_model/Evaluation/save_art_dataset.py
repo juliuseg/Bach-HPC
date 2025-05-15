@@ -11,7 +11,7 @@ os.makedirs(output_dir, exist_ok=True)
 
 shape = (256, 256, 256)
 gapsize = 10
-skeleton = True
+skeleton = False
 gap_chance = 0.3
 num_lines = 15
 wobble = 1.5

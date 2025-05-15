@@ -16,6 +16,39 @@ import pandas as pd
 #     mean_vec = np.mean(vecs, axis=0)
 #     return mean_vec / np.linalg.norm(mean_vec)  # Normalize to get a unit vector
 
+
+def binary_dilation_no_endpoints(volume):
+    """
+    Binary dilation that avoids dilating endpoints (voxels with only one neighbor).
+
+    Args:
+        volume (np.ndarray): 3D binary input array.
+
+    Returns:
+        np.ndarray: Dilated volume where only non-endpoints are allowed to dilate.
+    """
+    # Define 3D connectivity (26 neighbors)
+    struct = np.ones((3, 3, 3), dtype=int)
+    struct[1, 1, 1] = 0  # exclude center
+
+    # Count neighbors for each voxel
+    neighbor_count = convolve(volume.astype(int), struct, mode='constant', cval=0)
+
+    # Identify non-endpoints: voxel is 1 and has more than 1 neighbor
+    non_endpoint_mask = (volume == 1) & (neighbor_count > 1)
+
+    # Create a temporary volume that only includes non-endpoints
+    non_endpoint_volume = np.zeros_like(volume)
+    non_endpoint_volume[non_endpoint_mask] = 1
+
+    # Perform standard binary dilation on non-endpoints
+    dilated = convolve(non_endpoint_volume, struct, mode='constant', cval=0) > 0
+
+    # Keep background unchanged (dilate only into previously 0 voxels)
+    result = volume.astype(np.uint8) | dilated.astype(np.uint8)
+
+    return result.astype(np.float32)
+
 def print_align_vectors_to_mean(vecs, mean, max_vectors=1000, seed=42):
     """
     Flip vectors so they point in same hemisphere as the mean axis.

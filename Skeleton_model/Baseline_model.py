@@ -16,7 +16,7 @@ class SkeletonBaselineModel:
     - Uses a basic connection strategy (e.g., nearest neighbor).
     """
 
-    def __init__(self, search_radius=12, dilation=0):
+    def __init__(self, search_radius=12):
         """
         Initializes the baseline model.
 
@@ -24,7 +24,6 @@ class SkeletonBaselineModel:
             search_radius (int): The maximum distance to search for endpoint connections.
         """
         self.search_radius = search_radius
-        self.dilation = dilation
 
     def get_prediction(self, data):
         start_time = time.time()
@@ -37,7 +36,7 @@ class SkeletonBaselineModel:
 
 
         # Connect endpoints
-        connected_endpoints = self.connect_endpoints(skeleton_coords, skeleton_vectors, shape=data.shape)
+        connected_endpoints = self.connect_endpoints(skeleton_coords, skeleton_vectors, shape=data.shape, search_radius=self.search_radius)
         #print(f"Connected endpoints in {time.time() - start_time} seconds")
         return connected_endpoints, endpoints, skeleton_coords, skeleton_vectors
 
@@ -67,7 +66,7 @@ class SkeletonBaselineModel:
         return endpoints.astype(np.float16)  # Return a binary 3D array with only endpoints
 
 
-    def connect_endpoints(self, endpoints, vectors, shape, search_radius=10):
+    def connect_endpoints(self, endpoints, vectors, shape, search_radius):
         """
         Connects endpoint vectors by finding nearby matching vectors and drawing connections.
 

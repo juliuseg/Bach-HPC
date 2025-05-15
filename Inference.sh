@@ -1,8 +1,8 @@
 # mnist_job.sh
 #!/bin/bash
 #BSUB -J infer      # Job name
-#BSUB -q gpua100                  # GPU queue
-#BSUB -W 24:00                    # Walltime (2 hours)
+#BSUB -q c02613                  # GPU queue gpu100 or gpuv100 or c02613
+#BSUB -W 0:30                    # Walltime (2 hours)
 #BSUB -n 4
 #BSUB -R "span[hosts=1]"
 #BSUB -R "rusage[mem=32GB]"       # Request 8GB of system memory
@@ -19,11 +19,18 @@ module load cuda/12.1
 source /zhome/1a/a/156609/project/path/.venv/bin/activate
 
 # === INFERENCE ===
-python3 -m Skeleton_model.Evaluation.Inference Skeleton_g10_p1_gc01
-python3 -m Skeleton_model.Evaluation.Inference Skeleton_g10_p1_gc05
-python3 -m Skeleton_model.Evaluation.Inference Skeleton_g10_p1_gc03
-python3 -m Skeleton_model.Evaluation.Inference Skeleton_g10_p10_gc03
-python3 -m Skeleton_model.Evaluation.Inference Skeleton_g20_p1_gc03
+python3 -m Skeleton_model.Evaluation.Inference Skeleton_g10_p1_gc03_l15_w15_dice_layer3,Skeleton_g10_p1_gc03_l15_w15_dice_kernel5
+
+
+
+
+
+
+# python3 -m Skeleton_model.Evaluation.Inference Skeleton_g10_p1_gc01
+# python3 -m Skeleton_model.Evaluation.Inference Skeleton_g10_p1_gc05
+# python3 -m Skeleton_model.Evaluation.Inference Skeleton_g10_p1_gc03
+# python3 -m Skeleton_model.Evaluation.Inference Skeleton_g10_p10_gc03
+# python3 -m Skeleton_model.Evaluation.Inference Skeleton_g20_p1_gc03
 
 # # === BASELINE ===
 # python3 -m Skeleton_model.Evaluation.Inference Baseline
