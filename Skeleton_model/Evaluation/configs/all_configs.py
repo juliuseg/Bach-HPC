@@ -150,6 +150,19 @@ Skeleton_g10_p1_gc03_l15_w15_dice_layer3 = {
     "skeleton": True,
 }
 
+# One layer shallower
+Skeleton_g10_p1_gc03_l15_w15_dice_layer1 = {
+    "model_path": "model_checkpoints/skeleton_shallow_20250516-114235.pt",
+    "model_class": lambda: CustomUNet(channels=(32, 64), strides=(2,)),  # extra layer
+    "transform": transform,
+    "patch_size": (256, 256, 256),
+    "num_iterations": 32,
+    "predict_iterations": 1,
+    "skeleton": True,
+}
+
+
+# Kernel size 5
 Skeleton_g10_p1_gc03_l15_w15_dice_kernel5 = {
     "model_path": "model_checkpoints/model_kernel_5_model_20250514-211600.pt",
     "model_class": lambda: CustomUNet(kernel_size=5),  # non-default kernel
@@ -162,7 +175,12 @@ Skeleton_g10_p1_gc03_l15_w15_dice_kernel5 = {
 
 
 
+
 #### BASELINE #####
+
+
+
+
 Baseline_5 = {
     "model_class": SkeletonBaselineModel,
     "search_radius": 5,
@@ -192,6 +210,126 @@ Baseline_20 = {
     "predict_iterations": 1,
     "skeleton": True,
 }
+
+
+
+
+
+##### SEGMENTATION #####
+
+
+
+
+Segmentation_g10_p1_gc03_l15_w15_dice = {
+    "model_path": "model_checkpoints/segmentation_default_20250515-175843.pt",
+    "model_class": CustomUNet,
+    "transform": transform,
+    "patch_size": (256, 256, 256),
+    "num_iterations": 32,
+    "predict_iterations": 1,
+    "skeleton": False,
+}
+
+# Lower gap size
+Segmentation_g5_p1_gc03_l15_w15_dice = {
+    "model_path": "model_checkpoints/segmentation_decreased_gap_size_20250515-184712.pt",
+    "model_class": CustomUNet,
+    "transform": transform,
+    "patch_size": (256, 256, 256),
+    "num_iterations": 32,
+    "predict_iterations": 1,
+    "skeleton": False,
+}
+
+# Higher gap size
+Segmentation_g20_p1_gc03_l15_w15_dice = {
+    "model_path": "model_checkpoints/segmentation_increased_gap_size_20250515-192646.pt",
+    "model_class": CustomUNet,
+    "transform": transform,
+    "patch_size": (256, 256, 256),
+    "num_iterations": 32,
+    "predict_iterations": 1,
+    "skeleton": False,
+}
+
+# Lower gap chance
+Segmentation_g10_p1_gc01_l15_w15_dice = {
+    "model_path": "model_checkpoints/segmentation_decreased_gap_chance_20250515-202545.pt",
+    "model_class": CustomUNet,
+    "transform": transform,
+    "patch_size": (256, 256, 256),
+    "num_iterations": 32,
+    "predict_iterations": 1,
+    "skeleton": False,
+}
+
+# Higher gap chance
+Segmentation_g10_p1_gc05_l15_w15_dice = {
+    "model_path": "model_checkpoints/segmentation_increased_gap_chance_20250515-205935.pt",
+    "model_class": CustomUNet,
+    "transform": transform,
+    "patch_size": (256, 256, 256),
+    "num_iterations": 32,
+    "predict_iterations": 1,
+    "skeleton": False,
+}
+
+# Lower number of lines
+Segmentation_g10_p1_gc03_l7_w15_dice = {
+    "model_path": "model_checkpoints/segmentation_decreased_num_lines_20250515-212851.pt",
+    "model_class": CustomUNet,
+    "transform": transform,
+    "patch_size": (256, 256, 256),
+    "num_iterations": 32,
+    "predict_iterations": 1,
+    "skeleton": False,
+}
+
+# Higher number of lines
+Segmentation_g10_p1_gc03_l30_w15_dice = {
+    "model_path": "model_checkpoints/segmentation_increased_num_lines_20250515-222142.pt",
+    "model_class": CustomUNet,
+    "transform": transform,
+    "patch_size": (256, 256, 256),
+    "num_iterations": 32,
+    "predict_iterations": 1,
+    "skeleton": False,
+}
+
+# Wobble of 1.0
+Segmentation_g10_p1_gc03_l15_w10_dice = {
+    "model_path": "model_checkpoints/segmentation_wobble_10_20250515-230228.pt",
+    "model_class": CustomUNet,
+    "transform": transform,
+    "patch_size": (256, 256, 256),
+    "num_iterations": 32,
+    "predict_iterations": 1,
+    "skeleton": False,
+}
+
+# Wobble of 2.0
+Segmentation_g10_p1_gc03_l15_w20_dice = {
+    "model_path": "model_checkpoints/segmentation_wobble_20_20250515-235648.pt",
+    "model_class": CustomUNet,
+    "transform": transform,
+    "patch_size": (256, 256, 256),
+    "num_iterations": 32,
+    "predict_iterations": 1,
+    "skeleton": False,
+}
+
+# Wobble of 3.0
+Segmentation_g10_p1_gc03_l15_w30_dice = {
+    "model_path": "model_checkpoints/segmentation_wobble_30_20250516-005548.pt",
+    "model_class": CustomUNet,
+    "transform": transform,
+    "patch_size": (256, 256, 256),
+    "num_iterations": 32,
+    "predict_iterations": 1,
+    "skeleton": False,
+}
+
+
 
 
 ##### MICCAI #####

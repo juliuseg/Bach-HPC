@@ -23,7 +23,7 @@ def str2bool(v):
 
 # ---------------------- Setup ----------------------
 if len(sys.argv) < 2:
-    raise ValueError("❗ Usage: python evaluate_model.py <config_name> [num_cores]")
+    raise ValueError("❗ Usage: python evaluate_model.py <config_name> [num_cores] [full_prediction]")
 
 config_name = sys.argv[1]
 num_cores = int(sys.argv[2]) if len(sys.argv) > 2 else os.cpu_count()

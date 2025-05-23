@@ -19,7 +19,8 @@ module load cuda/12.1
 source /zhome/1a/a/156609/project/path/.venv/bin/activate
 
 # === INFERENCE ===
-python3 -m Skeleton_model.Evaluation.Inference Skeleton_g10_p1_gc03_l15_w15_dice_layer3,Skeleton_g10_p1_gc03_l15_w15_dice_kernel5
+python3 -m Skeleton_model.Evaluation.Inference Segmentation_g10_p1_gc03_l15_w15_dice,Segmentation_g5_p1_gc03_l15_w15_dice,Segmentation_g20_p1_gc03_l15_w15_dice,Segmentation_g10_p1_gc01_l15_w15_dice,Segmentation_g10_p1_gc05_l15_w15_dice,Segmentation_g10_p1_gc03_l7_w15_dice,Segmentation_g10_p1_gc03_l30_w15_dice,Segmentation_g10_p1_gc03_l15_w10_dice,Segmentation_g10_p1_gc03_l15_w20_dice,Segmentation_g10_p1_gc03_l15_w30_dice
+
 
 
 

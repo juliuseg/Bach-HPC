@@ -135,7 +135,7 @@ os.makedirs(save_dir, exist_ok=True)
 
 # Training parameters
 num_epochs_max = 50 ########### CHANGE BACK TO 50 ###########
-batch_size = 64
+batch_size = 32
 patience = 4  # Early stopping patience
 
 # DataLoader
@@ -239,9 +239,9 @@ for epoch in range(num_epochs_max):
         break
 
     # Early stop due to training for more than 25 minutes
-    # if epoch > 0 and (time.time() - start_time) / 60 > 25:
-    #     print("Early stopping triggered due to training for more than 25 minutes.")
-    #     break
+    if epoch > 0 and (time.time() - start_time) / 60 > 25:
+        print("Early stopping triggered due to training for more than 25 minutes.")
+        break
 
 
 print("Training done")

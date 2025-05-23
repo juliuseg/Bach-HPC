@@ -3,6 +3,7 @@ plots/
 
 # ignore model_checkpoints/ directory
 model_checkpoints/
+!model_checkpoints/model_g10_sTrue_gc03_l15_w15_dice_20250513-203401.pt
 logs/
 inference_results/
 Data_generation/generated_data/

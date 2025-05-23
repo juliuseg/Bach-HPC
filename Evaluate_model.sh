@@ -25,14 +25,52 @@ source /zhome/1a/a/156609/project/path/.venv/bin/activate
 #          /bin/bash -c "echo 'DONE: $msg at \$(date)'"
 # }
 
-echo "Evaluating: Baseline_5"
-python3 -m Skeleton_model.Evaluation.Evaluate_Models Baseline_5
-# notify_done "Eval done: Baseline_5"
+echo "Evaluating: Skeleton_g10_p1_gc03_l15_w15_dice_layer1"
+python3 -m Skeleton_model.Evaluation.Evaluate_Models Skeleton_g10_p1_gc03_l15_w15_dice_layer1
+
+echo "Evaluating: Segmentation_g10_p1_gc03_l15_w15_dice"
+python3 -m Skeleton_model.Evaluation.Evaluate_Models Segmentation_g10_p1_gc03_l15_w15_dice
+
+echo "Evaluating: Segmentation_g5_p1_gc03_l15_w15_dice"
+python3 -m Skeleton_model.Evaluation.Evaluate_Models Segmentation_g5_p1_gc03_l15_w15_dice
+
+echo "Evaluating: Segmentation_g20_p1_gc03_l15_w15_dice"
+python3 -m Skeleton_model.Evaluation.Evaluate_Models Segmentation_g20_p1_gc03_l15_w15_dice
+
+echo "Evaluating: Segmentation_g10_p1_gc01_l15_w15_dice"
+python3 -m Skeleton_model.Evaluation.Evaluate_Models Segmentation_g10_p1_gc01_l15_w15_dice
+
+echo "Evaluating: Segmentation_g10_p1_gc05_l15_w15_dice"
+python3 -m Skeleton_model.Evaluation.Evaluate_Models Segmentation_g10_p1_gc05_l15_w15_dice
+
+echo "Evaluating: Segmentation_g10_p1_gc03_l7_w15_dice"
+python3 -m Skeleton_model.Evaluation.Evaluate_Models Segmentation_g10_p1_gc03_l7_w15_dice
+
+echo "Evaluating: Segmentation_g10_p1_gc03_l30_w15_dice"
+python3 -m Skeleton_model.Evaluation.Evaluate_Models Segmentation_g10_p1_gc03_l30_w15_dice
+
+echo "Evaluating: Segmentation_g10_p1_gc03_l15_w10_dice"
+python3 -m Skeleton_model.Evaluation.Evaluate_Models Segmentation_g10_p1_gc03_l15_w10_dice
+
+echo "Evaluating: Segmentation_g10_p1_gc03_l15_w20_dice"
+python3 -m Skeleton_model.Evaluation.Evaluate_Models Segmentation_g10_p1_gc03_l15_w20_dice
+
+echo "Evaluating: Segmentation_g10_p1_gc03_l15_w30_dice"
+python3 -m Skeleton_model.Evaluation.Evaluate_Models Segmentation_g10_p1_gc03_l15_w30_dice
 
 
-echo "Evaluating: Baseline_20"
-python3 -m Skeleton_model.Evaluation.Evaluate_Models Baseline_20
-# notify_done "Eval done: Baseline_20"
+
+
+
+
+# echo "Evaluating: Baseline_5"
+# python3 -m Skeleton_model.Evaluation.Evaluate_Models Baseline_5
+# # notify_done "Eval done: Baseline_5"
+
+
+# echo "Evaluating: Baseline_20"
+# python3 -m Skeleton_model.Evaluation.Evaluate_Models Baseline_20
+# # notify_done "Eval done: Baseline_20"
 
 
 # echo "conloss: Skeleton_g10_p1_gc03_l15_w15_conloss"
